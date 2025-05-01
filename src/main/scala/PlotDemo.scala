@@ -55,6 +55,59 @@ object PlotDemo extends JFXApp3 {
     }
   }
 
+  // delete if this breaks something, but it shouldn't
+  def generateCube(n: Int, sideLength: Double, x: Double, y: Double, z: Double): Array[Pt4D] = {
+    // calculate the vertices, right now these are not used
+    /*val point1 = (sideLength / 2 + x, sideLength / 2 + y, -sideLength / 2 + z, 1.0)
+    val point2 = (-sideLength / 2 + x, sideLength / 2 + y, -sideLength / 2 + z, 1.0)
+    val point3 = (sideLength / 2 + x, -sideLength / 2 + y, -sideLength / 2 + z, 1.0)
+    val point4 = (-sideLength / 2 + x, -sideLength / 2 + y, -sideLength / 2 + z, 1.0)
+    val point5 = (sideLength / 2 + x, sideLength / 2 + y, sideLength / 2, 1.0)
+    val point6 = (-sideLength / 2 + x, sideLength / 2 + y, sideLength / 2, 1.0)
+    val point7 = (sideLength / 2 + x, -sideLength / 2 + y, sideLength / 2, 1.0)
+    val point8 = (-sideLength / 2 + x, -sideLength / 2 + y, sideLength / 2, 1.0)
+    Array(point1, point2, point3, point4, point5, point6, point8)*/
+
+    Array.fill(n) {
+      // u and v are random variables that allow us to cover the sphere
+      val u = rnd.nextDouble()
+      val v = rnd.nextDouble()
+
+      val face = (rnd.nextDouble() * 6).toInt
+      if (face == 0) {
+        val x = u * sideLength - sideLength / 2
+        val y = v * sideLength - sideLength / 2
+        val z = sideLength / 2
+        (x, y, z, 1.0)
+      } else if (face == 1) {
+        val x = u * sideLength - sideLength / 2
+        val y = v * sideLength - sideLength / 2
+        val z = - sideLength / 2
+        (x, y, z, 1.0)
+      } else if (face == 2) {
+        val x = u * sideLength - sideLength / 2
+        val z = v * sideLength - sideLength / 2
+        val y = sideLength / 2
+        (x, y, z, 1.0)
+      } else if (face == 3) {
+        val x = u * sideLength - sideLength / 2
+        val z = v * sideLength - sideLength / 2
+        val y = - sideLength / 2
+        (x, y, z, 1.0)
+      } else if (face == 4) {
+        val y = u * sideLength - sideLength / 2
+        val z = v * sideLength - sideLength / 2
+        val x = sideLength / 2
+        (x, y, z, 1.0)
+      } else {
+        val y = u * sideLength - sideLength / 2
+        val z = v * sideLength - sideLength / 2
+        val x = - sideLength / 2
+        (x, y, z, 1.0)
+      }
+    }
+  }
+
   def generateSphere(n: Int, radius: Double = 1.0): Array[Pt4D] = {
     Array.fill(n) {
       // u and v are random variables that allow us to cover the sphere
