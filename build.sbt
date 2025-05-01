@@ -12,3 +12,5 @@ libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % Test
 Test / parallelExecution := false
 
 libraryDependencies += "org.scala-lang.modules" %% "scala-parallel-collections" % "1.2.0"
+libraryDependencies ++= Seq("org.jocl" % "jocl" % "2.0.0")
+
