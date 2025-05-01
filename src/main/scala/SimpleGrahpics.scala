@@ -35,23 +35,32 @@ def draw(): Unit = {
 
   while (true) {
     //moveText = readLine()
-    println(s"Cube will rotate to the $moveText")
-    c.move()
+    //println(s"Cube will rotate to the $moveText")
+    //c.move()
     c.displayC()
   }
 }
 
-class PointH(val x: Double, val y: Double, val z: Double) {
+class PointH(var enterArr: Array[Double]) {
 
-  var pArray: Array[Double] = Array();;
+  var arr: Array[Double] = Array()
 
-  def this(x: Double, y: Double, z: Double, pArray: Array[Double]) = {
-    this(x, y, z)
-    this.pArray = Array(x, y, z, 1.0)
+  this.arr = enterArr
+
+  def this(x: Double, y: Double, z: Double) = {
+    this(Array(x, y, z, 1.0))
   }
 
-  def getPoint(): Array[Double] = {
-    pArray
+  def x: Double = {
+    arr(0)
+  }
+
+  def y: Double = {
+    arr(1)
+  }
+
+  def z: Double = {
+    arr(2)
   }
 
 }
@@ -93,9 +102,10 @@ class Cube(val sideLength: Double, val x: Double, val y: Double) {
     this.pArray = Array(point1, point2, point3, point4, point5, point6, point8)
   }*/
 
-  def move(): Unit = {
+  def move(transMatrix: Matrix): Unit = { //transMatrix: Matrix
     for p <- pArray do {
       // TODO: matrix multiplication here
+      p.arr = transMatrix*p.arr
     }
   }
 

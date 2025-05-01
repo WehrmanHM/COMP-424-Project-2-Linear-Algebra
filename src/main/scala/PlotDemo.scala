@@ -55,6 +55,19 @@ object PlotDemo extends JFXApp3 {
     }
   }
 
+  // delete if this breaks something, but it shouldn't
+  def GenerateCube(sideLength: Double, x: Double, y: Double): Array[Pt4D] = {
+    val point1 = (sideLength / 2 + x, sideLength / 2 + y, 0.0, 1.0)
+    val point2 = (-sideLength / 2 + x, sideLength / 2 + y, 0.0, 1.0)
+    val point3 = (sideLength / 2 + x, -sideLength / 2 + y, 0.0, 1.0)
+    val point4 = (-sideLength / 2 + x, -sideLength / 2 + y, 0.0, 1.0)
+    val point5 = (sideLength / 2 + x, sideLength / 2 + y, sideLength, 1.0)
+    val point6 = (-sideLength / 2 + x, sideLength / 2 + y, sideLength, 1.0)
+    val point7 = (sideLength / 2 + x, -sideLength / 2 + y, sideLength, 1.0)
+    val point8 = (-sideLength / 2 + x, -sideLength / 2 + y, sideLength, 1.0)
+    Array(point1, point2, point3, point4, point5, point6, point8)
+  }
+
   def generateSphere(n: Int, radius: Double = 1.0): Array[Pt4D] = {
     Array.fill(n) {
       // u and v are random variables that allow us to cover the sphere
