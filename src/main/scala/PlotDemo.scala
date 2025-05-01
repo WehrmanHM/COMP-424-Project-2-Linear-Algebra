@@ -159,6 +159,7 @@ object PlotDemo extends JFXApp3 {
         //lastUpdate = now
         val n = slider.value.value.toInt
         val pts = generateSphere(n, 4)
+        // val pts = generateCube(n, 7, 0, 0)
         val M = compositeMatrix
 
         val t0 = System.nanoTime()

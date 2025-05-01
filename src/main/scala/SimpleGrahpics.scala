@@ -157,11 +157,12 @@ class Cube(val sideLength: Double, val x: Double, val y: Double) {
     val face3Image = Picture.path(face3)
     val face4Image = Picture.path(face4)
     val face5Image = Picture.path(face5)
-    val face6Image = Picture.path(face6).strokeColor(Color.red)
+    val face6Image = Picture.path(face6).strokeColor(Color.red).fillColor(Color.red)
 
-    val cubeImage = face6Image.at(0,0).on(face5Image.at(0,0)).on(face4Image.at(0,0))
-      .on(face3Image.at(0,0)).on(face2Image.at(0,0)).on(face1Image.at(0,0))
+    val cubeImage = face1Image.at(0,0).on(face5Image.at(0,0)).on(face4Image.at(0,0))
+      .on(face3Image.at(0,0)).on(face2Image.at(0,0)).on(face6Image.at(0,0))
 
-    cubeImage.draw()
+    val frame = Frame.default.withSize(300, 300)
+    cubeImage.drawWithFrame(frame)
   }
 }
