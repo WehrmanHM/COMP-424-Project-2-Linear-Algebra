@@ -1,6 +1,6 @@
 import org.scalatest.funsuite.AnyFunSuite
 
-class MatrixMultiplicationTest extends AnyFunSuite {
+class mainSpec extends AnyFunSuite {
 
   test("Rotation matrix for 90 degrees around Z-axis produces correct transformation") {
     val rotationMatrix = generateRotationMatrix(90, 'z')
