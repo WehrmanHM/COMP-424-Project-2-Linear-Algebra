@@ -20,56 +20,55 @@ def main(): Unit = {
   val pointCloud = generatePointCloud(500000, 100, 100, 100)
 
 
-  for (size <- sizes) {
-    println(s"Testing with point cloud size: $size")
-    val pointCloud = generatePointCloud(size, 50, 50, 50)
-
-    // Sequential matrix multiplication
-    withTimeout(30.seconds) {
-      val sequentialStart = System.nanoTime()
-      val compositeMatrix = rotationMatrix * transformationMatrix * viewMatrix
-      val sequentialResult = pointCloud.map(point => compositeMatrix * point)
-      val sequentialEnd = System.nanoTime()
-      val sequentialTime = (sequentialEnd - sequentialStart) / 1e6
-      println(f"Sequential execution time: $sequentialTime%.2f ms")
-    }
-
-    // Advanced parallel matrix multiplication
-    withTimeout(30.seconds) {
-      val advancedParallelStart = System.nanoTime()
-      val compositeMatrix = rotationMatrix.parallelMultiply(transformationMatrix).parallelMultiply(viewMatrix)
-      val advancedParallelResult = pointCloud.par.map(point => compositeMatrix * point)
-      val advancedParallelEnd = System.nanoTime()
-      val advancedParallelTime = (advancedParallelEnd - advancedParallelStart) / 1e6
-      println(f"Advanced parallel execution time: $advancedParallelTime%.2f ms")
-    }
-
-    // Optimized parallel matrix multiplication
-    withTimeout(30.seconds) {
-      val optimizedParallelStart = System.nanoTime()
-      val compositeMatrix = rotationMatrix.optimizedParallelMultiply(transformationMatrix).optimizedParallelMultiply(viewMatrix)
-      val optimizedParallelResult = pointCloud.par.map(point => compositeMatrix * point)
-      val optimizedParallelEnd = System.nanoTime()
-      val optimizedParallelTime = (optimizedParallelEnd - optimizedParallelStart) / 1e6
-      println(f"Optimized parallel execution time: $optimizedParallelTime%.2f ms")
-    }
-    
-    // Futures implementation of the transformation process on all CPU cores
-    // not significantly different from the .par implementations
-    withTimeout(30.seconds) {
-      val optimizedParallelStart = System.nanoTime()
-      val compositeMatrix = rotationMatrix * transformationMatrix * viewMatrix
-      val optimizedParallelResult = pointCloudParallel(pointCloud.toArray, compositeMatrix)
-      val optimizedParallelEnd = System.nanoTime()
-      val optimizedParallelTime = (optimizedParallelEnd - optimizedParallelStart) / 1e6
-      println(f"Optimized parallel execution time: $optimizedParallelTime%.2f ms")
-    }
-    
+//  for (size <- sizes) {
+//    println(s"Testing with point cloud size: $size")
+//    val pointCloud = generatePointCloud(size, 50, 50, 50)
+//
+//    // Sequential matrix multiplication
+//    withTimeout(30.seconds) {
+//      val sequentialStart = System.nanoTime()
+//      val compositeMatrix = rotationMatrix * transformationMatrix * viewMatrix
+//      val sequentialResult = pointCloud.map(point => compositeMatrix * point)
+//      val sequentialEnd = System.nanoTime()
+//      val sequentialTime = (sequentialEnd - sequentialStart) / 1e6
+//      println(f"Sequential execution time: $sequentialTime%.2f ms")
+//    }
+//
+//    // Advanced parallel matrix multiplication
+//    withTimeout(30.seconds) {
+//      val advancedParallelStart = System.nanoTime()
+//      val compositeMatrix = rotationMatrix.parallelMultiply(transformationMatrix).parallelMultiply(viewMatrix)
+//      val advancedParallelResult = pointCloud.par.map(point => compositeMatrix * point)
+//      val advancedParallelEnd = System.nanoTime()
+//      val advancedParallelTime = (advancedParallelEnd - advancedParallelStart) / 1e6
+//      println(f"Advanced parallel execution time: $advancedParallelTime%.2f ms")
+//    }
+//
+//    // Optimized parallel matrix multiplication
+//    withTimeout(30.seconds) {
+//      val optimizedParallelStart = System.nanoTime()
+//      val compositeMatrix = rotationMatrix.optimizedParallelMultiply(transformationMatrix).optimizedParallelMultiply(viewMatrix)
+//      val optimizedParallelResult = pointCloud.par.map(point => compositeMatrix * point)
+//      val optimizedParallelEnd = System.nanoTime()
+//      val optimizedParallelTime = (optimizedParallelEnd - optimizedParallelStart) / 1e6
+//      println(f"Optimized parallel execution time: $optimizedParallelTime%.2f ms")
+//    }
+//
+//    // Futures implementation of the transformation process on all CPU cores
+//    // not significantly different from the .par implementations
+//    withTimeout(30.seconds) {
+//      val optimizedParallelStart = System.nanoTime()
+//      val compositeMatrix = rotationMatrix * transformationMatrix * viewMatrix
+//      val optimizedParallelResult = pointCloudParallel(pointCloud.toArray, compositeMatrix)
+//      val optimizedParallelEnd = System.nanoTime()
+//      val optimizedParallelTime = (optimizedParallelEnd - optimizedParallelStart) / 1e6
+//      println(f"Optimized parallel execution time: $optimizedParallelTime%.2f ms")
+//    }
+//
     // Don't uncomment this
-    // gpuParallelism()
+    gpuParallelism()
     
     println("")
-  }
   System.exit(0)
 }
 
@@ -167,8 +166,10 @@ def gpuParallelism(): Unit = {
   val rotationMatrix = generateRotationMatrix(53, 'y')
   val transformationMatrix = generateTranslationMatrix(Array(1.2, 7.0, 9.3))
   val viewMatrix = generateViewMatrix(Array(1, -6, 4))
-  val pointCloud = generatePointCloud(500000, 100, 100, 100)
-  for i <- 1 to 50 do {
+  val pointCloud = generatePointCloud(100000000, 100, 100, 100)
+  var total = 0.0
+  val runs = 50
+  for i <- 1 to runs do {
     val gpuStart = System.nanoTime()
     val compositeMatrix = rotationMatrix * transformationMatrix * viewMatrix
 
@@ -184,9 +185,11 @@ def gpuParallelism(): Unit = {
     }.toArray)
     val gpuStop = System.nanoTime()
     val gpuTime = (gpuStop - gpuStart) / 1e6
+    if (i != 1) then total = total + gpuTime
     println(s"Execution time: $gpuTime ms")
     println(s"Transformed ${pointCloud.size - 1} points on GPU.")
   }
+  println(s"Average execution time of ${total/runs-1} ms")
 }
 
 def pointCloudParallel(pointCloud: Array[Array[Double]], composite: Matrix, parallelism: Int = Runtime.getRuntime.availableProcessors()): Array[Array[Double]] = {
