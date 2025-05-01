@@ -1,11 +1,10 @@
 import java.util.concurrent.Executors
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
 class Matrix(data: Array[Array[Double]]) {
-  val numRows: Int = data.length
-  val numCols: Int = if (numRows == 0) 0 else {
+  private val numRows: Int = data.length
+  private val numCols: Int = if (numRows == 0) 0 else {
     data.head.length
   }
   val contents: Array[Array[Double]] = data
@@ -33,7 +32,7 @@ class Matrix(data: Array[Array[Double]]) {
     val roundedData = data.map(row => row.map(round))
     Matrix(roundedData)
   }
-
+  
   def parallelMultiply(that: Matrix): Matrix = {
       implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(Runtime.getRuntime.availableProcessors()))
 
@@ -71,6 +70,9 @@ class Matrix(data: Array[Array[Double]]) {
 
     val chunks: Seq[Seq[Array[Double]]] = this.data.toSeq.grouped(chunkSize).toSeq
 
+    // an attempt to optimize the guts of the matrix math
+    // not very successful
+    // I don't know if we need to keep this or not
     val futures = (0 until n by chunkSize).map {
       startRow =>
         Future {
@@ -107,7 +109,7 @@ class Matrix(data: Array[Array[Double]]) {
       row.map { x=>
         val factor = math.pow(10, displayPrec)
         val truncated = math.floor(x * factor)/factor
-        f"${truncated}"
+        f"$truncated"
       }.mkString("[", ", ", "]")
     }.mkString("\n")
   }

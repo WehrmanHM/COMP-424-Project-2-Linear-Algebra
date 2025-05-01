@@ -1,10 +1,9 @@
-import scala.util.Random
-import scala.math.{cos, sin}
-import java.util.concurrent.{Executors, ForkJoinPool}
-import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor, Future, TimeoutException}
-import scala.concurrent.duration.*
+import java.util.concurrent.ForkJoinPool
 import scala.collection.parallel.CollectionConverters.*
-import scala.collection.JavaConverters.collectionAsScalaIterableConverter
+import scala.concurrent.duration.*
+import scala.concurrent.*
+import scala.math.{cos, sin}
+import scala.util.Random
 
 val rnd = new Random()
 
@@ -16,6 +15,9 @@ val rnd = new Random()
   val rotationMatrix = generateRotationMatrix(45, 'x')
   val transformationMatrix = generateTranslationMatrix(Array(3, 5, -3))
   val viewMatrix = generateViewMatrix(Array(6, -3, -2))
+
+  val pointCloud = generatePointCloud(500000, 100, 100, 100)
+
 
   for (size <- sizes) {
     println(s"Testing with point cloud size: $size")
@@ -50,7 +52,9 @@ val rnd = new Random()
       val optimizedParallelTime = (optimizedParallelEnd - optimizedParallelStart) / 1e6
       println(f"Optimized parallel execution time: $optimizedParallelTime%.2f ms")
     }
-
+    
+    // Futures implementation of the transformation process on all CPU cores
+    // not significantly different from the .par implementations
     withTimeout(30.seconds) {
       val optimizedParallelStart = System.nanoTime()
       val compositeMatrix = rotationMatrix * transformationMatrix * viewMatrix
@@ -59,7 +63,10 @@ val rnd = new Random()
       val optimizedParallelTime = (optimizedParallelEnd - optimizedParallelStart) / 1e6
       println(f"Optimized parallel execution time: $optimizedParallelTime%.2f ms")
     }
-
+    
+    // Don't uncomment this
+    // gpuParallelism()
+    
     println("")
   }
   System.exit(0)
@@ -155,11 +162,37 @@ def generateProjectionMatrix(left: Double, right: Double, top: Double, bottom: D
   new Matrix(Array(row1, row2, row3, row4))
 }
 
+def gpuParallelism(): Unit = {
+  val rotationMatrix = generateRotationMatrix(53, 'y')
+  val transformationMatrix = generateTranslationMatrix(Array(1.2, 7.0, 9.3))
+  val viewMatrix = generateViewMatrix(Array(1, -6, 4))
+  val pointCloud = generatePointCloud(500000, 100, 100, 100)
+  for i <- 1 to 50 do {
+    val gpuStart = System.nanoTime()
+    val compositeMatrix = rotationMatrix * transformationMatrix * viewMatrix
+
+    // flatten the 4x4 matrix in a 16-element Float array
+    val M: Array[Float] = compositeMatrix.contents.flatten.map(_.toFloat)
+    // do the same thing to the entire point cloud (easier to work with in memory)
+    val inFlat: Array[Float] = pointCloud.flatMap(v => Array(v(0).toFloat, v(1).toFloat, v(2).toFloat, 1.0f)).toArray
+    // go go gadget, GPU (outFlat is what we get back)
+    val outFlat: Array[Float] = GpuTransformer.transform(inFlat, M)
+    // give the flattened array some grow juice and turn it back into a Matrix
+    val transformed: Matrix = new Matrix(outFlat.grouped(4).map { case Array(x, y, z, w) =>
+      Array(x.toDouble, y.toDouble, z.toDouble, w.toDouble)
+    }.toArray)
+    val gpuStop = System.nanoTime()
+    val gpuTime = (gpuStop - gpuStart) / 1e6
+    println(s"Execution time: $gpuTime ms")
+    println(s"Transformed ${pointCloud.size - 1} points on GPU.")
+  }
+}
+
 def pointCloudParallel(pointCloud: Array[Array[Double]], composite: Matrix, parallelism: Int = Runtime.getRuntime.availableProcessors()): Array[Array[Double]] = {
   val fjp = new ForkJoinPool(parallelism)
   implicit val ec: ExecutionContextExecutor = ExecutionContext.fromExecutor(fjp)
 
-  val chunkSize = (pointCloud.size+parallelism-1)/parallelism
+  val chunkSize = (pointCloud.length +parallelism-1)/parallelism
   val chunks: Seq[Array[Array[Double]]] = pointCloud.grouped(chunkSize).map(_.toArray).toSeq
 
   val futures: Seq[Future[Array[Array[Double]]]] = chunks.map {
@@ -180,92 +213,6 @@ def pointCloudParallel(pointCloud: Array[Array[Double]], composite: Matrix, para
 def isNegative: Boolean = {
   rnd.nextBoolean()
 }
-
-/**
- * Multiplies a 4x4 matrix with a 4D vector.
- * @param matrix the 4x4 matrix
- * @param vector the 4D vector
- * @return the resulting 4D vector
- */
-//def matrixMultiply(matrix: Array[Array[Double]], point: Array[Int]): Array[Double] = {
-//  val result = matrix.map(row => row.zip(point.map(_.toDouble)).map { case (a, b) => a * b }.sum)
-//  roundVector(result) // Apply rounding to the result
-//}
-
-def matrixMultiplication(A: Array[Array[Double]], B: Array[Array[Double]]): Array[Array[Double]] = {
-  val rowsA = A.length
-  val colsA = A.head.length
-  val colsB = B.head.length
-
-  // Array.tabulate creates a collection with the given dimensions, then fills it with the results of the following function
-  val product: Array[Array[Double]] = Array.tabulate(rowsA, colsB) {
-    (i, j) =>
-      // dot product of A row i and B column j
-      (0 until colsA).map(k => A(i)(k) * A(k)(j)).sum
-  }
-  product
-}
-
-/**
- * Advanced parallel matrix multiplication using block matrix multiplication.
- * @param pointCloud the 3D point cloud
- * @param matrix the transformation matrix
- * @return the transformed point cloud
- */
-//def advancedParallelMatrixMultiply(pointCloud: Iterable[Vector[Int]], matrix: Vector[Vector[Double]]): Iterable[Vector[Double]] = {
-//  implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(Runtime.getRuntime.availableProcessors()))
-//
-//  // Define block size for better cache efficiency
-//  val blockSize = Math.max(10000, pointCloud.size / Runtime.getRuntime.availableProcessors())
-//
-//  // Divide the point cloud into blocks
-//  val blocks = pointCloud.grouped(blockSize).toSeq
-//
-//  // Process each block in parallel
-//  val futures = blocks.map(block => Future {
-//    block.map(point => matrixMultiply(matrix, point))
-//  })
-//
-//  // Combine the results
-//  Await.result(Future.sequence(futures), Duration.Inf).flatten
-//}
-
-/**
- * Highly optimized parallel matrix multiplication with thread affinity and pre-allocated buffers.
- * @param pointCloud the 3D point cloud
- * @param matrix the transformation matrix
- * @return the transformed point cloud
- */
-//def optimizedParallelMatrixMultiply(pointCloud: Iterable[Vector[Int]], matrix: Vector[Vector[Double]]): Iterable[Vector[Double]] = {
-//  import java.util.concurrent.ConcurrentLinkedQueue
-//
-//  // Use a fixed thread pool with fewer threads for low-end hardware
-//  val numThreads = Math.max(2, Runtime.getRuntime.availableProcessors() / 2)
-//  implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(numThreads))
-//
-//  // Dynamically calculate chunk size
-//  val chunkSize = Math.max(10000, pointCloud.size / (numThreads * 4))
-//
-//  // Pre-allocate a thread-safe queue for results
-//  val resultQueue = new ConcurrentLinkedQueue[Iterable[Vector[Double]]]()
-//
-//  // Divide the point cloud into chunks
-//  val chunks = pointCloud.grouped(chunkSize).toSeq
-//
-//  // Process each chunk in parallel with thread affinity
-//  val futures = chunks.zipWithIndex.map { case (chunk, index) =>
-//    Future {
-//      val threadResult = chunk.map(point => matrixMultiply(matrix, point))
-//      resultQueue.add(threadResult) // Add results to the queue
-//    }
-//  }
-//
-//  // Wait for all threads to complete
-//  Await.result(Future.sequence(futures), Duration.Inf)
-//
-//  // Combine results from the queue
-//  resultQueue.asScala.flatten
-//}
 
 /**
  * Executes a block of code with a timeout. If the block takes longer than the specified duration,
