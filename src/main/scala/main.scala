@@ -10,6 +10,14 @@ val rnd = new Random()
   println(generateRotationMatrix(127, 'x'))
 }
 
+/**
+ * generates {size} points in 3D space and returns them
+ * @param size how many points to generate
+ * @param xBound the boundaries of the x-axis
+ * @param yBound the boundaries of the y-axis
+ * @param zBound the boundaries of the z-axis
+ * @return an iterable of 3D homogeneous vectors
+ */
 def generatePointCloud(size: Int, xBound: Int, yBound: Int, zBound: Int): Iterable[Vector[Int]] = {
   def generatePoint(): Vector[Int] = {
     val x = rnd.nextInt(xBound) * (if isNegative then -1 else 1)
@@ -20,7 +28,12 @@ def generatePointCloud(size: Int, xBound: Int, yBound: Int, zBound: Int): Iterab
   for i <- 0 to size yield generatePoint()
 }
 
-// angle is in degrees
+/**
+ * generates a 4x4 rotation matrix for a given angle and axis
+ * @param angle the angle of rotation, in degrees
+ * @param axis the axis being rotated around
+ * @return the rotation matrix
+ */
 def generateRotationMatrix(angle: Double, axis: Char): Vector[Vector[Double]] = {
   val angleRad = angle.toRadians
   axis match
@@ -44,7 +57,11 @@ def generateRotationMatrix(angle: Double, axis: Char): Vector[Vector[Double]] = 
       Vector(row1, row2, row3, row4)
 }
 
-// translation is a vector of the form (x, y, z)
+/**
+ * generates a 4x4 translation matrix for a given translation vector
+ * @param translation the desired translation as a vector (x, y, z)
+ * @return the translation matrix
+ */
 def generateTranslationMatrix(translation: Vector[Double]): Vector[Vector[Double]] = {
   val x = translation(0)
   val y = translation(1)
@@ -53,13 +70,28 @@ def generateTranslationMatrix(translation: Vector[Double]): Vector[Vector[Double
   Vector(Vector(1, 0, 0, x), Vector(0, 1, 0, y), Vector(0, 0, 1, z), Vector(0, 0, 0, 1))
 }
 
-// this is also how we make our view matrix, but we invert the direction
-// i.e. to move the camera forward 5 units, we move everything backwards 5 units
-// (closer to the camera)
+
+/**
+ * generates a 4x4 translation matrix to simulate camera movement
+ * it's just a translation matrix with the direction inverted,
+ * i.e. to move the camera forward 5 units, we move everything backwards 5 units (closer to the camera)
+ * @param cameraMovement the desired camera movement as a vector (x, y, z)
+ * @return the camera view matrix
+ */
 def generateViewMatrix(cameraMovement: Vector[Double]): Vector[Vector[Double]] = {
   generateTranslationMatrix(cameraMovement.map(_ * -1))
 }
 
+/**
+ * generate a 4x4 matrix that simulates mapping 3D space in two dimensions, providing perspective
+ * @param left the left bound of the space (-x)
+ * @param right the right bound of the space (+x)
+ * @param top the upper bound of the space (+y)
+ * @param bottom the lower bound of the space (-y)
+ * @param near the close bound of the space (-z)
+ * @param far the far bound of the space (+z)
+ * @return the projection matrix
+ */
 def generateProjectionMatrix(left: Double, right: Double, top: Double, bottom: Double, near: Double, far: Double): Vector[Vector[Double]] = {
   val row1 = Vector(2/(right-left), 0, 0, -(right+left)/(right-left))
   val row2 = Vector(0, 2/(top-bottom), 0, -(top+bottom)/(top-bottom))
@@ -68,6 +100,10 @@ def generateProjectionMatrix(left: Double, right: Double, top: Double, bottom: D
   Vector(row1, row2, row3, row4)
 }
 
+/**
+ * returns a random true/false value
+ * @return true or false
+ */
 def isNegative: Boolean = {
   rnd.nextBoolean()
 }
