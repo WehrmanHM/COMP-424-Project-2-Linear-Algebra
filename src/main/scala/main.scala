@@ -155,8 +155,9 @@ def isNegative: Boolean = {
  * @param vector the 4D vector
  * @return the resulting 4D vector
  */
-def matrixMultiply(matrix: Vector[Vector[Double]], vector: Vector[Int]): Vector[Double] = {
-  matrix.map(row => row.zip(vector.map(_.toDouble)).map { case (a, b) => a * b }.sum)
+def matrixMultiply(matrix: Vector[Vector[Double]], point: Vector[Int]): Vector[Double] = {
+  val result = matrix.map(row => row.zip(point.map(_.toDouble)).map { case (a, b) => a * b }.sum)
+  roundVector(result) // Apply rounding to the result
 }
 
 /**
@@ -236,4 +237,56 @@ def withTimeout[T](duration: Duration)(block: => T): Option[T] = {
       println("This method takes too long")
       None
   }
+}
+
+/**
+ * Compares two vectors of doubles with a tolerance to account for floating-point precision errors.
+ * @param v1 the first vector
+ * @param v2 the second vector
+ * @param tolerance the allowed difference between corresponding elements
+ * @return true if the vectors are approximately equal, false otherwise
+ */
+def areVectorsEqual(v1: Vector[Double], v2: Vector[Double], tolerance: Double = 1e-9): Boolean = {
+  v1.zip(v2).forall { case (a, b) => Math.abs(a - b) <= tolerance }
+}
+
+/**
+ * Compares two collections of vectors with a tolerance.
+ * @param c1 the first collection
+ * @param c2 the second collection
+ * @param tolerance the allowed difference between corresponding elements
+ * @return true if the collections are approximately equal, false otherwise
+ */
+def areCollectionsEqual(c1: Iterable[Vector[Double]], c2: Iterable[Vector[Double]], tolerance: Double = 1e-9): Boolean = {
+  c1.size == c2.size && c1.zip(c2).forall { case (v1, v2) => areVectorsEqual(v1, v2, tolerance) }
+}
+
+/**
+ * Rounds small floating-point values to 0.0 within a specified tolerance.
+ * @param value the floating-point value
+ * @param tolerance the tolerance for rounding
+ * @return the rounded value
+ */
+def roundToZero(value: Double, tolerance: Double = 1e-9): Double = {
+  if (Math.abs(value) <= tolerance) 0.0 else value
+}
+
+/**
+ * Applies rounding to all elements in a vector.
+ * @param vector the vector of doubles
+ * @param tolerance the tolerance for rounding
+ * @return the rounded vector
+ */
+def roundVector(vector: Vector[Double], tolerance: Double = 1e-9): Vector[Double] = {
+  vector.map(roundToZero(_, tolerance))
+}
+
+/**
+ * Applies rounding to all vectors in a collection.
+ * @param collection the collection of vectors
+ * @param tolerance the tolerance for rounding
+ * @return the rounded collection
+ */
+def roundCollection(collection: Iterable[Vector[Double]], tolerance: Double = 1e-9): Iterable[Vector[Double]] = {
+  collection.map(roundVector(_, tolerance))
 }
