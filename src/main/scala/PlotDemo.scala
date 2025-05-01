@@ -114,24 +114,32 @@ object PlotDemo extends JFXApp3 {
     val gc = canvas.graphicsContext2D
 
     // Compute matrix
-    val rotationMatrix = generateRotationMatrix(45, 'x')
-    val translationMatrix = generateTranslationMatrix(Array(1, 1, -5))
-    val povMatrix = generateViewMatrix(Array(1, 3, 0))
-    val compositeMatrix = rotationMatrix * translationMatrix * povMatrix
+
+    val rotationMatrix3 = generateRotationMatrix(15, 'z')
+    val rotationMatrix2 = generateRotationMatrix(3, 'y')
+    val translationMatrix = generateTranslationMatrix(Array(0, 0, 0.01))
+    val povMatrix = generateViewMatrix(Array(0, 0, 0))
+    val compositeMatrix = rotationMatrix3 * rotationMatrix2 * translationMatrix * povMatrix
 
     val minInterval: Long = 100000000L // 100 ms = 100,000,000 ns
     var lastUpdate: Long = 0L
-
+    var oldCount: Int = 0
+    var pts: Array[Pt4D] = new Array(50000)
     val timer = AnimationTimer { now =>
       if (now - lastUpdate >= minInterval) {
         //lastUpdate = now
         val n = slider.value.value.toInt
-//        val pts = generateDonut(n, 0.5, 1.0)
-        val pts = generateSphere(n, 2.0)
+
+        if (n != oldCount) then {
+          oldCount = n
+          //pts = generateSphere(n, 4)
+          pts = generateDonut(n, 0.5, 1.0)
+          pts.map((x, y, z, w) => (x, y, z+50, w))
+        }
         val M = compositeMatrix
 
         val t0 = System.nanoTime()
-        val transformedPts =
+        pts =
           if (cpuButton.selected.value) transformSequential(pts, M)
           else if (parallelButton.selected.value) transformParallel(pts, M)
           else transformGPU(pts, M)
@@ -143,7 +151,7 @@ object PlotDemo extends JFXApp3 {
         gc.fill = Color.Black;
         gc.fillRect(0, 0, sceneW, sceneH)
         gc.fill = Color.White
-        transformedPts.foreach { case (x, y, z, _) =>
+        pts.foreach { case (x, y, z, _) =>
 //          val pX = (x / z) * (sceneW / 2) + (sceneW / 2)
 //          val pY = (y / z) * (sceneH / 2) + (sceneH / 2)
           val pX = (f*x) / z
