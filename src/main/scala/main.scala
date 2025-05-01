@@ -7,7 +7,8 @@ import scala.util.Random
 
 val rnd = new Random()
 
-@main def main(): Unit = {
+@main
+def main(): Unit = {
   println("Hello World")
   println("")
 

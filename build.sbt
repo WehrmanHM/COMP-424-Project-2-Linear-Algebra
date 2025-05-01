@@ -33,3 +33,5 @@ Compile / run / javaOptions ++= {
   )
 }
 
+libraryDependencies += "org.creativescala" %% "doodle" % "0.30.0"
+
