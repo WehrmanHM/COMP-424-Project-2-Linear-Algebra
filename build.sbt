@@ -14,3 +14,22 @@ Test / parallelExecution := false
 libraryDependencies += "org.scala-lang.modules" %% "scala-parallel-collections" % "1.2.0"
 libraryDependencies ++= Seq("org.jocl" % "jocl" % "2.0.0")
 
+libraryDependencies ++= Seq(
+  "org.scalafx" %% "scalafx" % "21.0.0-R32",
+  "org.openjfx" % "javafx-base"     % "21" classifier "win",
+  "org.openjfx" % "javafx-graphics" % "21" classifier "win",
+  "org.openjfx" % "javafx-controls" % "21" classifier "win"
+)
+
+Compile / run / javaOptions ++= {
+  val javafxJars = (Compile / dependencyClasspath).value.files
+    .filter(f => f.getName.startsWith("javafx-"))
+    .map(_.getParentFile.getAbsolutePath)
+    .distinct
+    .mkString(";")
+  Seq(
+    "--module-path", javafxJars,
+    "--add-modules", "javafx.controls,javafx.graphics"
+  )
+}
+
