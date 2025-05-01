@@ -14,3 +14,5 @@ Test / parallelExecution := false
 libraryDependencies += "org.scala-lang.modules" %% "scala-parallel-collections" % "1.2.0"
 libraryDependencies ++= Seq("org.jocl" % "jocl" % "2.0.0")
 
+libraryDependencies += "org.creativescala" %% "doodle" % "0.30.0"
+
