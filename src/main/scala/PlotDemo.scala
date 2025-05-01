@@ -56,7 +56,7 @@ object PlotDemo extends JFXApp3 {
   }
 
   // delete if this breaks something, but it shouldn't
-  def GenerateCube(sideLength: Double, x: Double, y: Double): Array[Pt4D] = {
+  def generateCube(sideLength: Double, x: Double, y: Double): Array[Pt4D] = {
     val point1 = (sideLength / 2 + x, sideLength / 2 + y, 0.0, 1.0)
     val point2 = (-sideLength / 2 + x, sideLength / 2 + y, 0.0, 1.0)
     val point3 = (sideLength / 2 + x, -sideLength / 2 + y, 0.0, 1.0)

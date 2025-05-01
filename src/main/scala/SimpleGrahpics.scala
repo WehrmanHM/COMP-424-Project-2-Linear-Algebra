@@ -20,13 +20,6 @@ import doodle.syntax.style.StylePictureOps
 import doodle.syntax.all.RendererPictureOps
 import doodle.syntax.renderer.RendererPictureOps
 
-val feather =
-  ClosedPath.empty
-  .lineTo(100, 100)
-  .curveTo(90, 75, 90, 25, 10, 10)
-  .moveTo(100, 100)
-  .curveTo(75, 90, 25, 90, 10, 10)//.strokeColor(Color.red).strokeWidth(5.0)
-
 @main
 def draw(): Unit = {
   var moveText = ""
@@ -36,7 +29,14 @@ def draw(): Unit = {
   while (true) {
     //moveText = readLine()
     //println(s"Cube will rotate to the $moveText")
-    //c.move()
+
+    val transMat = Matrix(Array(
+      Array(Math.cos(0.1), -Math.sin(0.1), 0.0, 0.0),
+      Array(Math.sin(0.1), Math.cos(0.1), 0.0, 0.0),
+      Array(0.0, 0.0, 1.0, 0.0),
+      Array(0.0, 0.0, 0.0 ,1.0)))
+
+    c.move(transMat)
     c.displayC()
   }
 }
@@ -86,7 +86,7 @@ class Cube(val sideLength: Double, val x: Double, val y: Double) {
   this.point6 = PointH(-sideLength / 2 + x, sideLength / 2 + y, sideLength)
   this.point7 = PointH(sideLength / 2 + x, -sideLength / 2 + y, sideLength)
   this.point8 = PointH(-sideLength / 2 + x, -sideLength / 2 + y, sideLength)
-  this.pArray = Array(point1, point2, point3, point4, point5, point6, point8)
+  this.pArray = Array(point1, point2, point3, point4, point5, point6, point7, point8)
 
   /*def this(sideLength: Double, x: Double, y: Double) = {
     this(sideLength, x, y)
@@ -154,9 +154,9 @@ class Cube(val sideLength: Double, val x: Double, val y: Double) {
 
     val face1Image = Picture.path(face1)
     val face2Image = Picture.path(face2)
-    val face3Image = Picture.path(face2)
-    val face4Image = Picture.path(face2)
-    val face5Image = Picture.path(face2)
+    val face3Image = Picture.path(face3)
+    val face4Image = Picture.path(face4)
+    val face5Image = Picture.path(face5)
     val face6Image = Picture.path(face6).strokeColor(Color.red)
 
     val cubeImage = face6Image.at(0,0).on(face5Image.at(0,0)).on(face4Image.at(0,0))
