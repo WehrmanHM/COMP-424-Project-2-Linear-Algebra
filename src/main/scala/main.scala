@@ -1,9 +1,9 @@
 import scala.util.Random
 import scala.math.{cos, sin}
 import java.util.concurrent.{Executors, ForkJoinPool}
-import scala.concurrent.{ExecutionContext, Future, TimeoutException}
+import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor, Future, TimeoutException}
 import scala.concurrent.duration.*
-import scala.concurrent.Await
+import scala.collection.parallel.CollectionConverters.*
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
 val rnd = new Random()
@@ -12,9 +12,10 @@ val rnd = new Random()
   println("Hello World")
   println("")
 
-  val sizes = List(10, 100, 10000, 1000000, 10000000, 15000000)
-  // Define a transformation matrix (e.g., rotation around the x-axis)
-  val transformationMatrix = generateRotationMatrix(45, 'x')
+  val sizes = List(10, 100, 10000, 1000000, 10000000)
+  val rotationMatrix = generateRotationMatrix(45, 'x')
+  val transformationMatrix = generateTranslationMatrix(Array(3, 5, -3))
+  val viewMatrix = generateViewMatrix(Array(6, -3, -2))
 
   for (size <- sizes) {
     println(s"Testing with point cloud size: $size")
@@ -23,7 +24,8 @@ val rnd = new Random()
     // Sequential matrix multiplication
     withTimeout(30.seconds) {
       val sequentialStart = System.nanoTime()
-      val sequentialResult = pointCloud.map(point => matrixMultiply(transformationMatrix, point))
+      val compositeMatrix = rotationMatrix * transformationMatrix * viewMatrix
+      val sequentialResult = pointCloud.map(point => compositeMatrix * point)
       val sequentialEnd = System.nanoTime()
       val sequentialTime = (sequentialEnd - sequentialStart) / 1e6
       println(f"Sequential execution time: $sequentialTime%.2f ms")
@@ -32,7 +34,8 @@ val rnd = new Random()
     // Advanced parallel matrix multiplication
     withTimeout(30.seconds) {
       val advancedParallelStart = System.nanoTime()
-      val advancedParallelResult = advancedParallelMatrixMultiply(pointCloud, transformationMatrix)
+      val compositeMatrix = rotationMatrix.parallelMultiply(transformationMatrix).parallelMultiply(viewMatrix)
+      val advancedParallelResult = pointCloud.par.map(point => compositeMatrix * point)
       val advancedParallelEnd = System.nanoTime()
       val advancedParallelTime = (advancedParallelEnd - advancedParallelStart) / 1e6
       println(f"Advanced parallel execution time: $advancedParallelTime%.2f ms")
@@ -41,11 +44,22 @@ val rnd = new Random()
     // Optimized parallel matrix multiplication
     withTimeout(30.seconds) {
       val optimizedParallelStart = System.nanoTime()
-      val optimizedParallelResult = optimizedParallelMatrixMultiply(pointCloud, transformationMatrix)
+      val compositeMatrix = rotationMatrix.optimizedParallelMultiply(transformationMatrix).optimizedParallelMultiply(viewMatrix)
+      val optimizedParallelResult = pointCloud.par.map(point => compositeMatrix * point)
       val optimizedParallelEnd = System.nanoTime()
       val optimizedParallelTime = (optimizedParallelEnd - optimizedParallelStart) / 1e6
       println(f"Optimized parallel execution time: $optimizedParallelTime%.2f ms")
     }
+
+    withTimeout(30.seconds) {
+      val optimizedParallelStart = System.nanoTime()
+      val compositeMatrix = rotationMatrix * transformationMatrix * viewMatrix
+      val optimizedParallelResult = pointCloudParallel(pointCloud.toArray, compositeMatrix)
+      val optimizedParallelEnd = System.nanoTime()
+      val optimizedParallelTime = (optimizedParallelEnd - optimizedParallelStart) / 1e6
+      println(f"Optimized parallel execution time: $optimizedParallelTime%.2f ms")
+    }
+
     println("")
   }
   System.exit(0)
@@ -59,12 +73,12 @@ val rnd = new Random()
  * @param zBound the boundaries of the z-axis
  * @return an iterable of 3D homogeneous vectors
  */
-def generatePointCloud(size: Int, xBound: Int, yBound: Int, zBound: Int): Iterable[Vector[Int]] = {
-  def generatePoint(): Vector[Int] = {
+def generatePointCloud(size: Int, xBound: Int, yBound: Int, zBound: Int): Iterable[Array[Double]] = {
+  def generatePoint(): Array[Double] = {
     val x = rnd.nextInt(xBound) * (if isNegative then -1 else 1)
     val y = rnd.nextInt(yBound) * (if isNegative then -1 else 1)
     val z = rnd.nextInt(zBound) * (if isNegative then -1 else 1)
-    Vector(x, y, z, 1)
+    Array(x, y, z, 1.0)
   }
   for i <- 0 to size yield generatePoint()
 }
@@ -75,27 +89,27 @@ def generatePointCloud(size: Int, xBound: Int, yBound: Int, zBound: Int): Iterab
  * @param axis the axis being rotated around
  * @return the rotation matrix
  */
-def generateRotationMatrix(angle: Double, axis: Char): Vector[Vector[Double]] = {
+def generateRotationMatrix(angle: Double, axis: Char): Matrix = {
   val angleRad = angle.toRadians
   axis match
     case 'x' =>
-      val row1 = Vector(1.0, 0, 0, 0)
-      val row2 = Vector(0, cos(angleRad), -sin(angleRad), 0)
-      val row3 = Vector(0, sin(angleRad), cos(angleRad), 0)
-      val row4 = Vector(0, 0, 0, 1.0)
-      Vector(row1, row2, row3, row4)
+      val row1 = Array(1.0, 0, 0, 0)
+      val row2 = Array(0, cos(angleRad), -sin(angleRad), 0)
+      val row3 = Array(0, sin(angleRad), cos(angleRad), 0)
+      val row4 = Array(0, 0, 0, 1.0)
+      new Matrix(Array(row1, row2, row3, row4))
     case 'y' =>
-      val row1 = Vector(cos(angleRad), 0, sin(angleRad), 0)
-      val row2 = Vector(0, 1.0, 0, 0)
-      val row3 = Vector(-sin(angleRad), 0, cos(angleRad), 0)
-      val row4 = Vector(0, 0, 0, 1.0)
-      Vector(row1, row2, row3, row4)
+      val row1 = Array(cos(angleRad), 0, sin(angleRad), 0)
+      val row2 = Array(0, 1.0, 0, 0)
+      val row3 = Array(-sin(angleRad), 0, cos(angleRad), 0)
+      val row4 = Array(0, 0, 0, 1.0)
+      new Matrix(Array(row1, row2, row3, row4))
     case 'z' =>
-      val row1 = Vector(cos(angleRad), -sin(angleRad), 0, 0)
-      val row2 = Vector(sin(angleRad), cos(angleRad), 0, 0)
-      val row3 = Vector(0, 0, 1.0, 0)
-      val row4 = Vector(0, 0, 0, 1.0)
-      Vector(row1, row2, row3, row4)
+      val row1 = Array(cos(angleRad), -sin(angleRad), 0, 0)
+      val row2 = Array(sin(angleRad), cos(angleRad), 0, 0)
+      val row3 = Array(0, 0, 1.0, 0)
+      val row4 = Array(0, 0, 0, 1.0)
+      new Matrix(Array(row1, row2, row3, row4))
 }
 
 /**
@@ -103,12 +117,12 @@ def generateRotationMatrix(angle: Double, axis: Char): Vector[Vector[Double]] = 
  * @param translation the desired translation as a vector (x, y, z)
  * @return the translation matrix
  */
-def generateTranslationMatrix(translation: Vector[Double]): Vector[Vector[Double]] = {
+def generateTranslationMatrix(translation: Array[Double]): Matrix = {
   val x = translation(0)
   val y = translation(1)
   val z = translation(2)
 
-  Vector(Vector(1, 0, 0, x), Vector(0, 1, 0, y), Vector(0, 0, 1, z), Vector(0, 0, 0, 1))
+  new Matrix(Array(Array(1, 0, 0, x), Array(0, 1, 0, y), Array(0, 0, 1, z), Array(0, 0, 0, 1.0)))
 }
 
 
@@ -119,7 +133,7 @@ def generateTranslationMatrix(translation: Vector[Double]): Vector[Vector[Double
  * @param cameraMovement the desired camera movement as a vector (x, y, z)
  * @return the camera view matrix
  */
-def generateViewMatrix(cameraMovement: Vector[Double]): Vector[Vector[Double]] = {
+def generateViewMatrix(cameraMovement: Array[Double]): Matrix = {
   generateTranslationMatrix(cameraMovement.map(_ * -1))
 }
 
@@ -133,12 +147,30 @@ def generateViewMatrix(cameraMovement: Vector[Double]): Vector[Vector[Double]] =
  * @param far the far bound of the space (+z)
  * @return the projection matrix
  */
-def generateProjectionMatrix(left: Double, right: Double, top: Double, bottom: Double, near: Double, far: Double): Vector[Vector[Double]] = {
-  val row1 = Vector(2/(right-left), 0, 0, -(right+left)/(right-left))
-  val row2 = Vector(0, 2/(top-bottom), 0, -(top+bottom)/(top-bottom))
-  val row3 = Vector(0, 0, -2*(far-near), -(far+near)/(far-near))
-  val row4 = Vector(0, 0, 0.0, 0.0)
-  Vector(row1, row2, row3, row4)
+def generateProjectionMatrix(left: Double, right: Double, top: Double, bottom: Double, near: Double, far: Double): Matrix = {
+  val row1 = Array(2/(right-left), 0, 0, -(right+left)/(right-left))
+  val row2 = Array(0, 2/(top-bottom), 0, -(top+bottom)/(top-bottom))
+  val row3 = Array(0, 0, -2*(far-near), -(far+near)/(far-near))
+  val row4 = Array(0, 0, 0.0, 0.0)
+  new Matrix(Array(row1, row2, row3, row4))
+}
+
+def pointCloudParallel(pointCloud: Array[Array[Double]], composite: Matrix, parallelism: Int = Runtime.getRuntime.availableProcessors()): Array[Array[Double]] = {
+  val fjp = new ForkJoinPool(parallelism)
+  implicit val ec: ExecutionContextExecutor = ExecutionContext.fromExecutor(fjp)
+
+  val chunkSize = (pointCloud.size+parallelism-1)/parallelism
+  val chunks: Seq[Array[Array[Double]]] = pointCloud.grouped(chunkSize).map(_.toArray).toSeq
+
+  val futures: Seq[Future[Array[Array[Double]]]] = chunks.map {
+    chunk => Future {
+      chunk.map(composite * _)
+    }
+  }
+
+  val result = Await.result(Future.sequence(futures), Duration.Inf).flatten.toArray
+  fjp.shutdown()
+  result
 }
 
 /**
@@ -155,9 +187,23 @@ def isNegative: Boolean = {
  * @param vector the 4D vector
  * @return the resulting 4D vector
  */
-def matrixMultiply(matrix: Vector[Vector[Double]], point: Vector[Int]): Vector[Double] = {
-  val result = matrix.map(row => row.zip(point.map(_.toDouble)).map { case (a, b) => a * b }.sum)
-  roundVector(result) // Apply rounding to the result
+//def matrixMultiply(matrix: Array[Array[Double]], point: Array[Int]): Array[Double] = {
+//  val result = matrix.map(row => row.zip(point.map(_.toDouble)).map { case (a, b) => a * b }.sum)
+//  roundVector(result) // Apply rounding to the result
+//}
+
+def matrixMultiplication(A: Array[Array[Double]], B: Array[Array[Double]]): Array[Array[Double]] = {
+  val rowsA = A.length
+  val colsA = A.head.length
+  val colsB = B.head.length
+
+  // Array.tabulate creates a collection with the given dimensions, then fills it with the results of the following function
+  val product: Array[Array[Double]] = Array.tabulate(rowsA, colsB) {
+    (i, j) =>
+      // dot product of A row i and B column j
+      (0 until colsA).map(k => A(i)(k) * A(k)(j)).sum
+  }
+  product
 }
 
 /**
@@ -166,23 +212,23 @@ def matrixMultiply(matrix: Vector[Vector[Double]], point: Vector[Int]): Vector[D
  * @param matrix the transformation matrix
  * @return the transformed point cloud
  */
-def advancedParallelMatrixMultiply(pointCloud: Iterable[Vector[Int]], matrix: Vector[Vector[Double]]): Iterable[Vector[Double]] = {
-  implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(Runtime.getRuntime.availableProcessors()))
-
-  // Define block size for better cache efficiency
-  val blockSize = Math.max(10000, pointCloud.size / Runtime.getRuntime.availableProcessors())
-
-  // Divide the point cloud into blocks
-  val blocks = pointCloud.grouped(blockSize).toSeq
-
-  // Process each block in parallel
-  val futures = blocks.map(block => Future {
-    block.map(point => matrixMultiply(matrix, point))
-  })
-
-  // Combine the results
-  Await.result(Future.sequence(futures), Duration.Inf).flatten
-}
+//def advancedParallelMatrixMultiply(pointCloud: Iterable[Vector[Int]], matrix: Vector[Vector[Double]]): Iterable[Vector[Double]] = {
+//  implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(Runtime.getRuntime.availableProcessors()))
+//
+//  // Define block size for better cache efficiency
+//  val blockSize = Math.max(10000, pointCloud.size / Runtime.getRuntime.availableProcessors())
+//
+//  // Divide the point cloud into blocks
+//  val blocks = pointCloud.grouped(blockSize).toSeq
+//
+//  // Process each block in parallel
+//  val futures = blocks.map(block => Future {
+//    block.map(point => matrixMultiply(matrix, point))
+//  })
+//
+//  // Combine the results
+//  Await.result(Future.sequence(futures), Duration.Inf).flatten
+//}
 
 /**
  * Highly optimized parallel matrix multiplication with thread affinity and pre-allocated buffers.
@@ -190,36 +236,36 @@ def advancedParallelMatrixMultiply(pointCloud: Iterable[Vector[Int]], matrix: Ve
  * @param matrix the transformation matrix
  * @return the transformed point cloud
  */
-def optimizedParallelMatrixMultiply(pointCloud: Iterable[Vector[Int]], matrix: Vector[Vector[Double]]): Iterable[Vector[Double]] = {
-  import java.util.concurrent.ConcurrentLinkedQueue
-
-  // Use a fixed thread pool with fewer threads for low-end hardware
-  val numThreads = Math.max(2, Runtime.getRuntime.availableProcessors() / 2)
-  implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(numThreads))
-
-  // Dynamically calculate chunk size
-  val chunkSize = Math.max(10000, pointCloud.size / (numThreads * 4))
-
-  // Pre-allocate a thread-safe queue for results
-  val resultQueue = new ConcurrentLinkedQueue[Iterable[Vector[Double]]]()
-
-  // Divide the point cloud into chunks
-  val chunks = pointCloud.grouped(chunkSize).toSeq
-
-  // Process each chunk in parallel with thread affinity
-  val futures = chunks.zipWithIndex.map { case (chunk, index) =>
-    Future {
-      val threadResult = chunk.map(point => matrixMultiply(matrix, point))
-      resultQueue.add(threadResult) // Add results to the queue
-    }
-  }
-
-  // Wait for all threads to complete
-  Await.result(Future.sequence(futures), Duration.Inf)
-
-  // Combine results from the queue
-  resultQueue.asScala.flatten
-}
+//def optimizedParallelMatrixMultiply(pointCloud: Iterable[Vector[Int]], matrix: Vector[Vector[Double]]): Iterable[Vector[Double]] = {
+//  import java.util.concurrent.ConcurrentLinkedQueue
+//
+//  // Use a fixed thread pool with fewer threads for low-end hardware
+//  val numThreads = Math.max(2, Runtime.getRuntime.availableProcessors() / 2)
+//  implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(numThreads))
+//
+//  // Dynamically calculate chunk size
+//  val chunkSize = Math.max(10000, pointCloud.size / (numThreads * 4))
+//
+//  // Pre-allocate a thread-safe queue for results
+//  val resultQueue = new ConcurrentLinkedQueue[Iterable[Vector[Double]]]()
+//
+//  // Divide the point cloud into chunks
+//  val chunks = pointCloud.grouped(chunkSize).toSeq
+//
+//  // Process each chunk in parallel with thread affinity
+//  val futures = chunks.zipWithIndex.map { case (chunk, index) =>
+//    Future {
+//      val threadResult = chunk.map(point => matrixMultiply(matrix, point))
+//      resultQueue.add(threadResult) // Add results to the queue
+//    }
+//  }
+//
+//  // Wait for all threads to complete
+//  Await.result(Future.sequence(futures), Duration.Inf)
+//
+//  // Combine results from the queue
+//  resultQueue.asScala.flatten
+//}
 
 /**
  * Executes a block of code with a timeout. If the block takes longer than the specified duration,
