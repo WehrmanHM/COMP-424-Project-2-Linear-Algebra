@@ -122,6 +122,23 @@ object PlotDemo extends JFXApp3 {
     }
   }
 
+  def generateDonut(n: Int, a: Double = 1.0, c: Double = 2.0): Array[Pt4D] = {
+    Array.fill(n) {
+      val u = rnd.nextDouble()*2*Math.PI
+      val v = rnd.nextDouble()*2*Math.PI
+      var g = a * math.abs(c+math.cos(v)*a)
+      while (g < rnd.nextDouble()*(a*(a+c))) do {
+        val u = rnd.nextDouble() * 2 * Math.PI
+        val v = rnd.nextDouble() * 2 * Math.PI
+        g = a * math.abs(c+math.cos(v)*a)
+      }
+      val x = (c + a * math.cos(v)) * math.cos(u)
+      val y = (c + a * math.cos(v)) * math.sin(u)
+      val z = a * math.sin(v)
+      (x, y, z, 1.0)
+    }
+  }
+
   override def start(): Unit = {
     val slider = new Slider(1000, 200000, 50000) {
       showTickLabels = true
@@ -151,8 +168,8 @@ object PlotDemo extends JFXApp3 {
 
     // Compute matrix
     val rotationMatrix = generateRotationMatrix(45, 'x')
-    val translationMatrix = generateTranslationMatrix(Array(3, 10, 10))
-    val povMatrix = generateViewMatrix(Array(3, 3, 3))
+    val translationMatrix = generateTranslationMatrix(Array(1, 1, -5))
+    val povMatrix = generateViewMatrix(Array(1, 3, 0))
     val compositeMatrix = rotationMatrix * translationMatrix * povMatrix
 
     val minInterval: Long = 100000000L // 100 ms = 100,000,000 ns
@@ -162,8 +179,11 @@ object PlotDemo extends JFXApp3 {
       if (now - lastUpdate >= minInterval) {
         //lastUpdate = now
         val n = slider.value.value.toInt
-        //val pts = generateSphere(n, 4)
-        val pts = generateCube(n, 7, 0, 0, 0)
+
+        // val pts = generateDonut(n, 0.5, 1.0)
+        val pts = generateSphere(n, 2.0)
+
+       // val pts = generateCube(n, 7, 0, 0, 0)
         val M = compositeMatrix
 
         val t0 = System.nanoTime()
